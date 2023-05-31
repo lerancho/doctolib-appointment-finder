@@ -9,9 +9,9 @@ env:
   IMAGE_NAME: doctolib-appointment-finder
 
 jobs:
-  docker:
+  docker-build-and-push:
     runs-on: ubuntu-latest
-    environment: prod # add this line to specify the environment where your secrets are stored
+    environment: prod
 
     steps:
     - uses: actions/checkout@v2
@@ -35,3 +35,21 @@ jobs:
         context: .
         push: true
         tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.IMAGE_NAME }}:${{ steps.pkg.outputs.version }}
+
+    - name: Get commit messages
+      id: commit-messages
+      run: |
+        echo 'COMMIT_MESSAGES<<EOF' >> $GITHUB_ENV
+        git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:"%h - %s" >> $GITHUB_ENV
+        echo 'EOF' >> $GITHUB_ENV
+
+    - name: Create a new GitHub release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.pkg.outputs.version }}
+        release_name: Release v${{ steps.pkg.outputs.version }}
+        body: ${{ env.COMMIT_MESSAGES }}
+        draft: false
+        prerelease: false
