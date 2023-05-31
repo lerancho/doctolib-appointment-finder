@@ -1,0 +1,20 @@
+{
+  "name": "doctolib-appointment-finder",
+  "version": "1.0.0",
+  "dependencies": {
+    "@types/node": "^20.2.5",
+    "@types/node-cron": "^3.0.7",
+    "axios": "^1.4.0",
+    "dotenv": "^16.1.0",
+    "moment": "^2.29.4",
+    "node-cron": "^3.0.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.0.4"
+  },
+  "scripts": {
+    "start": "ts-node index.ts"
+  },
+  "main": "index.js",
+  "author": "René Kann <mail@renekann.de>",
+  "license": "MIT"
+}
