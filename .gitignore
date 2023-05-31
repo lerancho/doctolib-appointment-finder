@@ -58,6 +58,3 @@ dist
 .idea
 .editorconfig
 DoctolibAppointmentFinder.iml
-
-# docker
-docker-compose.yml
