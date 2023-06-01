@@ -6,22 +6,20 @@ import cron, {ScheduledTask} from 'node-cron';
 
 dotenv.config();
 
-interface Availability {
-  date: string;
-  slots: string[];
-  substitution: any;
-  appointment_request_slots: any[];
-}
-
 async function fetchAvailabilities(): Promise<string[]> {
   try {
     // Get the URL from the environment variable
-    const url = process.env.APPOINTMENT_URL || '';
+    let url = process.env.APPOINTMENT_URL || '';
 
     // Check if the URL is defined
     if (!url) {
       throw new Error('The APPOINTMENT_URL environment variable is not defined.');
     }
+
+    // Replace the start_date with today's date
+    const today = moment().format('YYYY-MM-DD');
+    url = url.replace(/start_date=\d{4}-\d{2}-\d{2}/, `start_date=${today}`);
+
 
     // Check if the URL is valid
     let parsedUrl: URL;
@@ -34,33 +32,26 @@ async function fetchAvailabilities(): Promise<string[]> {
     console.log(`Fetching availabilities for ${url}`);
 
     // Fetch the availabilities.json
-    const response = await axios.get<{availabilities: Availability[]}>(parsedUrl.toString());
-    const availabilities = response.data.availabilities;
+    const response = await axios.get<{next_slot: string}>(parsedUrl.toString());
 
-    // Collect all the dates with available slots
-    const availableDates: string[] = [];
-    for (const availability of availabilities) {
-      if (availability.slots.length > 0) {
-        // Parse the date using moment
-        const date = moment(availability.date).format('YYYY-MM-DD');
-        availableDates.push(date);
-      }
+    // Check if next_slot is available
+    const nextSlot = response.data.next_slot;
+
+    if (nextSlot) {
+      const availableDates = [moment(nextSlot).format('YYYY-MM-DD')];
+      console.log('Fetch complete.');
+      return availableDates;
+    } else {
+      console.log('No next_slot available.');
+      return [];
     }
-
-    console.log('Fetch complete.');
-
-    // Return the list of available dates
-    return availableDates;
   } catch (error) {
     console.error(`Error fetching availabilities: ${error}`);
     return [];
   }
 }
 
-async function availableAppointment(dates: string[]): Promise<string> {
-  // Get the timespan from the environment variable
-  const timespan = Number(process.env.TIMESPAN_DAYS || '0');
-
+async function availableAppointment(dates: string[], timespan: number): Promise<string> {
   // Check if the timespan is a valid number
   if (isNaN(timespan)) {
     throw new Error('The TIMESPAN_DAYS environment variable is not a valid number.');
@@ -89,18 +80,6 @@ async function availableAppointment(dates: string[]): Promise<string> {
   return '';
 }
 
-async function fetchQuote(): Promise<string> {
-  try {
-    const response = await axios.get('https://type.fit/api/quotes');
-    const quotes = response.data;
-    const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
-    return randomQuote.text + ' - ' + randomQuote.author;
-  } catch (error) {
-    console.error(`Error fetching quote: ${error}`);
-    return '';
-  }
-}
-
 async function sendSlackNotification(date: string): Promise<void> {
   const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
   const bookingUrl = process.env.DOCTOR_BOOKING_URL;
@@ -113,22 +92,13 @@ async function sendSlackNotification(date: string): Promise<void> {
     throw new Error('The DOCTOR_BOOKING_URL environment variable is not defined.');
   }
 
-  const quote = await fetchQuote();
-
   const message = {
     blocks: [
       {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `:pill: *Quote of the day:* _${quote}_`
-        }
-      },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `An appointment is available on *${date}* :calendar:. You can book it here: ${bookingUrl}`
+          text: `:pill: An appointment is available on *${date}* :calendar:. You can book it here: ${bookingUrl}`
         }
       },
     ]
@@ -141,20 +111,29 @@ async function sendSlackNotification(date: string): Promise<void> {
 let task: ScheduledTask;
 
 async function checkAppointmentAvailability() {
-  const dates = await fetchAvailabilities();
-  const date = await availableAppointment(dates);
+  // Get the timespan from the environment variable
+  const timespan = Number(process.env.TIMESPAN_DAYS || '0');
 
-  if (date) {
-    console.log(`Next available appointment is on: ${date}`);
-    await sendSlackNotification(date);
+  try {
+    const dates = await fetchAvailabilities();
+    const date = await availableAppointment(dates, timespan);
 
-    // Stop the task once an appointment is found
-    if (task) {
-      console.log('Appointment found. Stopping the task...');
-      task.stop();
+    if (date) {
+      console.log(`Next available appointment is on: ${date}`);
+      await sendSlackNotification(date).catch((error) => {
+        console.error(`Error while sending Slack notification: ${error}`);
+      });
+
+      // Stop the task once an appointment is found
+      if (task) {
+        console.log('Appointment found. Stopping the task...');
+        task.stop();
+      }
+    } else {
+      console.log(`No appointments available within the specified timespan (${timespan} days).`);
     }
-  } else {
-    console.log('No appointments available within the specified timespan.');
+  } catch (error) {
+    console.error(`Error while checking appointment availability: ${error}`);
   }
 }
 
@@ -166,5 +145,9 @@ if (!cron.validate(schedule)) {
   console.error('The SCHEDULE environment variable is not a valid cron expression.');
 } else {
   console.log(`Scheduling appointment availability check every ${schedule}.`);
-  task = cron.schedule(schedule, checkAppointmentAvailability);
+  try {
+    task = cron.schedule(schedule, checkAppointmentAvailability);
+  } catch (error) {
+    console.error(`Error while scheduling appointment availability check: ${error}`);
+  }
 }

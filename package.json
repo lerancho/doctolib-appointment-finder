@@ -1,6 +1,6 @@
 {
   "name": "doctolib-appointment-finder",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "dependencies": {
     "@types/node": "^20.2.5",
     "@types/node-cron": "^3.0.7",
