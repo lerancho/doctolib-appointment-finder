@@ -6,7 +6,7 @@ import cron, {ScheduledTask} from 'node-cron';
 
 dotenv.config();
 
-async function fetchAvailabilities(): Promise<string[]> {
+export async function fetchAvailabilities(): Promise<string[]> {
   try {
     // Get the URL from the environment variable
     let url = process.env.APPOINTMENT_URL || '';
@@ -51,7 +51,7 @@ async function fetchAvailabilities(): Promise<string[]> {
   }
 }
 
-async function availableAppointment(dates: string[], timespan: number): Promise<string> {
+export async function availableAppointment(dates: string[], timespan: number): Promise<string> {
   // Check if the timespan is a valid number
   if (isNaN(timespan)) {
     throw new Error('The TIMESPAN_DAYS environment variable is not a valid number.');
@@ -80,7 +80,7 @@ async function availableAppointment(dates: string[], timespan: number): Promise<
   return '';
 }
 
-async function sendSlackNotification(date: string): Promise<void> {
+export async function sendSlackNotification(date: string): Promise<void> {
   const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
   const bookingUrl = process.env.DOCTOR_BOOKING_URL;
 
@@ -113,6 +113,7 @@ let task: ScheduledTask;
 async function checkAppointmentAvailability() {
   // Get the timespan from the environment variable
   const timespan = Number(process.env.TIMESPAN_DAYS || '0');
+  const stopWhenFound = process.env.STOP_WHEN_FOUND?.toLowerCase() === 'true'
 
   try {
     const dates = await fetchAvailabilities();
@@ -125,7 +126,7 @@ async function checkAppointmentAvailability() {
       });
 
       // Stop the task once an appointment is found
-      if (task) {
+      if (task && stopWhenFound) {
         console.log('Appointment found. Stopping the task...');
         task.stop();
       }
@@ -137,17 +138,22 @@ async function checkAppointmentAvailability() {
   }
 }
 
-// Get the schedule from the environment variable
-const schedule = process.env.SCHEDULE || '* * * * *';
-
-// Schedule the function using node-cron
-if (!cron.validate(schedule)) {
-  console.error('The SCHEDULE environment variable is not a valid cron expression.');
+if (typeof jest !== 'undefined') {
+  console.log('Running in Jest environment');
 } else {
-  console.log(`Scheduling appointment availability check every ${schedule}.`);
-  try {
-    task = cron.schedule(schedule, checkAppointmentAvailability);
-  } catch (error) {
-    console.error(`Error while scheduling appointment availability check: ${error}`);
+  // Get the schedule from the environment variable
+  const schedule = process.env.SCHEDULE || '* * * * *';
+
+  // Schedule the function using node-cron
+  if (!cron.validate(schedule)) {
+    console.error('The SCHEDULE environment variable is not a valid cron expression.');
+  } else {
+    console.log(`Scheduling appointment availability check every ${schedule}.`);
+    try {
+      task = cron.schedule(schedule, checkAppointmentAvailability);
+    } catch (error) {
+      console.error(`Error while scheduling appointment availability check: ${error}`);
+    }
   }
 }
+

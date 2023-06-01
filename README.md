@@ -1,6 +1,6 @@
 # Doctolib Appointment Finder
 
-The Doctolib Appointment Finder is a Node.js application which checks for available appointments for a specific doctor on Doctolib and notifies you via a Slack message if there's an available appointment within a given timespan.
+The Doctolib Appointment Finder is a Node.js application which checks for available appointments for a specific doctor on Doctolib and notifies you via a Slack message if there's an available appointment within a given timespan. It also gives an option to automatically stop checking once an appointment is found.
 
 ## Setup
 
@@ -26,6 +26,7 @@ The configuration is done using environment variables, which can be set in the `
 - `SCHEDULE`: A cron expression that defines how often the availability of appointments should be checked.
 - `SLACK_WEBHOOK_URL`: The URL of your Slack incoming webhook. This will be used to send notifications.
 - `DOCTOR_BOOKING_URL`: The URL of the doctor's booking page. This is optional, but can be used to provide a direct booking link in the Slack notification.
+- `STOP_WHEN_FOUND`: (optional) If set to 'true', the script will automatically stop checking for new appointments once an appointment is found. Default is 'false', which means the script will keep running and checking for appointments even after one is found.
 
 ## Extracting the APPOINTMENT_URL
 
