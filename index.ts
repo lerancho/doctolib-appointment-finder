@@ -138,6 +138,35 @@ async function checkAppointmentAvailability() {
   }
 }
 
+export async function sendInitialSlackNotification(): Promise<void> {
+  const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
+  const bookingUrl = process.env.DOCTOR_BOOKING_URL;
+  const timespan = Number(process.env.TIMESPAN_DAYS || '0');
+  const schedule = process.env.SCHEDULE || '* * * * *';
+
+  if (!slackWebhookUrl) {
+    throw new Error('The SLACK_WEBHOOK_URL environment variable is not defined.');
+  }
+
+  if (!bookingUrl) {
+    throw new Error('The DOCTOR_BOOKING_URL environment variable is not defined.');
+  }
+
+  const message = {
+    blocks: [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `:robot_face: The Doctolib Appointment Finder has started checking every ${schedule} for available appointments within the next ${timespan} days. You will receive notifications when appointments become available. The booking link is: ${bookingUrl}`
+        }
+      },
+    ]
+  };
+
+  await axios.post(slackWebhookUrl, message);
+}
+
 if (typeof jest !== 'undefined') {
   console.log('Running in Jest environment');
 } else {
@@ -151,6 +180,11 @@ if (typeof jest !== 'undefined') {
     console.log(`Scheduling appointment availability check every ${schedule}.`);
     try {
       task = cron.schedule(schedule, checkAppointmentAvailability);
+
+      sendInitialSlackNotification().catch((error) => {
+        console.error(`Error while sending initial Slack notification: ${error}`);
+      });
+
     } catch (error) {
       console.error(`Error while scheduling appointment availability check: ${error}`);
     }
