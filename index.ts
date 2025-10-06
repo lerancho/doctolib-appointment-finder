@@ -17,6 +17,8 @@ async function fetchAvailabilities(): Promise<string[]> {
   const fullUrl = url.replace(/start_date=\d{4}-\d{2}-\d{2}/, `start_date=${today}`);
 
   console.log(`Fetching availabilities from: ${fullUrl}`);
+  console.log('Fetching ', fullUrl);
+
 
   const response = await axios.get<{ next_slot: string; availabilities?: any[] }>(fullUrl, {
     headers: {
