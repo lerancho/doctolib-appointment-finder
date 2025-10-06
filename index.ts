@@ -60,4 +60,29 @@ function saveAvailabilities(dates: string[]): void {
 
 // Comparaison entre anciens et nouveaux rendez-vous
 function compareAvailabilities(oldDates: string[], newDates: string[]) {
-  const added = newDates.filter(d => !oldDates
+  const added = newDates.filter(d => !oldDates.includes(d));
+  const removed = oldDates.filter(d => !newDates.includes(d));
+  return { added, removed };
+}
+
+// Exécution principale
+(async () => {
+  try {
+    const previous = loadPreviousAvailabilities();
+    const current = await fetchAvailabilities();
+
+    const { added, removed } = compareAvailabilities(previous, current);
+
+    if (added.length > 0 || removed.length > 0) {
+      console.log('📅 Changes detected!');
+      if (added.length > 0) console.log(`➕ New appointments: ${added.join(', ')}`);
+      if (removed.length > 0) console.log(`➖ Removed appointments: ${removed.join(', ')}`);
+    } else {
+      console.log('✅ No changes in available appointments.');
+    }
+
+    saveAvailabilities(current);
+  } catch (err) {
+    console.error('❌ Error:', err);
+  }
+})();
