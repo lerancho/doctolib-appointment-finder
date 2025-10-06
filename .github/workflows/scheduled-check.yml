@@ -1,4 +1,4 @@
-name: Doctolib appointment check
+name: Doctolib appointment change monitor
 
 on:
   schedule:
@@ -8,9 +8,9 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
-      - name: Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
@@ -22,16 +22,7 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Run appointment checker once
+      - name: Detect appointment changes
         env:
-          # configure these secrets in Settings → Secrets → Actions
           APPOINTMENT_URL: ${{ secrets.APPOINTMENT_URL }}
-          TIMESPAN_DAYS: ${{ secrets.TIMESPAN_DAYS }}
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          DOCTOR_BOOKING_URL: ${{ secrets.DOCTOR_BOOKING_URL }}
-          STOP_WHEN_FOUND: ${{ secrets.STOP_WHEN_FOUND }}
-          # special flag: run the check a single time and exit
-          RUN_ONCE: 'true'
-          # for the initial Slack message (optional) - default is to NOT send initial message when RUN_ONCE=true
-          # SCHEDULE: '*/15 * * * *'   # optional: for message formatting
         run: yarn start
