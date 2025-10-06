@@ -5,8 +5,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Fichier pour stocker les disponibilités précédentes
 const STATE_FILE = 'last_availabilities.json';
 
+// Récupération des rendez-vous
 async function fetchAvailabilities(): Promise<string[]> {
   const url = process.env.APPOINTMENT_URL;
   if (!url) throw new Error('APPOINTMENT_URL not set.');
@@ -16,7 +18,15 @@ async function fetchAvailabilities(): Promise<string[]> {
 
   console.log(`Fetching availabilities from: ${fullUrl}`);
 
-  const response = await axios.get<{ next_slot: string; availabilities?: any[] }>(fullUrl);
+  const response = await axios.get<{ next_slot: string; availabilities?: any[] }>(fullUrl, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36',
+      'Accept': 'application/json, text/plain, */*',
+      'Accept-Language': 'fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Referer': 'https://www.doctolib.fr/',
+    },
+  });
+
   const availabilities = new Set<string>();
 
   if (response.data.availabilities) {
@@ -32,6 +42,7 @@ async function fetchAvailabilities(): Promise<string[]> {
   return Array.from(availabilities).sort();
 }
 
+// Chargement des rendez-vous précédents
 function loadPreviousAvailabilities(): string[] {
   if (!fs.existsSync(STATE_FILE)) return [];
   try {
@@ -42,33 +53,11 @@ function loadPreviousAvailabilities(): string[] {
   }
 }
 
+// Sauvegarde des rendez-vous
 function saveAvailabilities(dates: string[]): void {
   fs.writeFileSync(STATE_FILE, JSON.stringify(dates, null, 2));
 }
 
+// Comparaison entre anciens et nouveaux rendez-vous
 function compareAvailabilities(oldDates: string[], newDates: string[]) {
-  const added = newDates.filter(d => !oldDates.includes(d));
-  const removed = oldDates.filter(d => !newDates.includes(d));
-  return { added, removed };
-}
-
-(async () => {
-  try {
-    const previous = loadPreviousAvailabilities();
-    const current = await fetchAvailabilities();
-
-    const { added, removed } = compareAvailabilities(previous, current);
-
-    if (added.length > 0 || removed.length > 0) {
-      console.log('📅 Changes detected!');
-      if (added.length > 0) console.log(`➕ New appointments: ${added.join(', ')}`);
-      if (removed.length > 0) console.log(`➖ Removed appointments: ${removed.join(', ')}`);
-    } else {
-      console.log('✅ No changes in available appointments.');
-    }
-
-    saveAvailabilities(current);
-  } catch (err) {
-    console.error('❌ Error:', err);
-  }
-})();
+  const added = newDates.filter(d => !oldDates
